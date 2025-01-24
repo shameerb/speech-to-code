@@ -1,5 +1,7 @@
 from abc import ABC, abstractmethod
 import openai
+import anthropic
+import requests
 
 # Interface for Code Generation
 class CodeGenerationStrategy(ABC):
@@ -28,10 +30,30 @@ class OpenAICodeGeneration(CodeGenerationStrategy):
             print(f"Error getting code completion: {e}")
             return "" 
         
+class ClaudeCodeGeneration(CodeGenerationStrategy):
+    def __init__(self, api_key: str):
+        self.api_key = api_key
+        self.client = anthropic.Anthropic()
+
+    def generate_code(self, prompt: str) -> str:
+        try:
+            response = self.client.messages.create(
+                model="claude-3-5-sonnet-20240620",
+                max_tokens=1024,
+                messages=[
+                    {"role": "user", "content": f"Write Python code for: {prompt}"}
+                ]
+            )
+            return response.content[0].text.strip()
+        except Exception as e:
+            print(f"Error getting code completion from Claude: {e}")
+            return ""
+
 # Concrete implementation using DeepSeek
 class DeepSeekCodeGeneration(CodeGenerationStrategy):
     def __init__(self, api_key: str):
         self.api_key = api_key
+        self.base_url = "https://api.deepseek.com/v1/chat/completions"
 
     def generate_code(self, prompt: str) -> str:
         try:
@@ -40,14 +62,27 @@ class DeepSeekCodeGeneration(CodeGenerationStrategy):
                 "Content-Type": "application/json"
             }
             
-            # TODO: Replace with actual DeepSeek API endpoint and request format
-            response = {
-                "code": "# Placeholder for DeepSeek generated code\n"
-                        "print('DeepSeek implementation pending')"
+            data = {
+                "model": "deepseek-chat",
+                "messages": [
+                    {"role": "system", "content": "You are a helpful assistant"},
+                    {"role": "user", "content": f"Write Python code for: {prompt}"}
+                ],
+                "stream": False
             }
             
-            return response["code"].strip()
+            response = requests.post(
+                self.base_url,
+                headers=headers,
+                json=data
+            )
+            response.raise_for_status()
+            
+            result = response.json()
+            return result["choices"][0]["message"]["content"].strip()
+            
         except Exception as e:
-            print(f"Error getting code completion from DeepSeek: {e}")
+            print(f"Error getting code completion: {e}")
             return ""
+
 
