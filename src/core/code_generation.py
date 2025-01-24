@@ -2,6 +2,9 @@ from abc import ABC, abstractmethod
 import openai
 import anthropic
 import requests
+from transformers import AutoTokenizer, AutoModelForCausalLM
+import torch
+
 
 # Interface for Code Generation
 class CodeGenerationStrategy(ABC):
@@ -85,4 +88,34 @@ class DeepSeekCodeGeneration(CodeGenerationStrategy):
             print(f"Error getting code completion: {e}")
             return ""
 
-
+# Concrete implementation using Transformers
+class TransformersCodeGeneration(CodeGenerationStrategy):
+    def __init__(self, model_name: str = "bigcode/starcoder"):
+        self.tokenizer = AutoTokenizer.from_pretrained(model_name)
+        self.model = AutoModelForCausalLM.from_pretrained(model_name)
+        if torch.cuda.is_available():
+            self.model = self.model.to("cuda")
+        
+    def generate_code(self, prompt: str) -> str:
+        try:
+            inputs = self.tokenizer.encode(f"Write Python code for: {prompt}", 
+                                         return_tensors="pt")
+            if torch.cuda.is_available():
+                inputs = inputs.to("cuda")
+                
+            outputs = self.model.generate(
+                inputs,
+                max_length=512,
+                num_return_sequences=1,
+                temperature=0.7,
+                do_sample=True,
+                pad_token_id=self.tokenizer.eos_token_id
+            )
+            
+            generated_code = self.tokenizer.decode(outputs[0], 
+                                                 skip_special_tokens=True)
+            return generated_code.strip()
+            
+        except Exception as e:
+            print(f"Error generating code with transformers: {e}")
+            return ""
