@@ -8,6 +8,19 @@ Convert speech to code. Interact with your codebase using speech models.
 - Speech to text model should be low latency, accurate and light weight (low compute) to be run on any local machine
 - The code generation part is already supported by existing editors.
 
+
+## Features (Not necessarily in scope/exhaustive)
+- Types of voice commands
+    - Code Generation
+        - Template/Code generation 
+        - Code editing (file name, function name, line nos)
+        - Approve/Reject suggestions
+    - IDE actions (run, debug, command lines)
+    - Text related updates to
+        - Todos, README's
+    - Copilot questions while building features
+        - check documentation, ideate design, ideate architecture etc.
+
 ## Resources
 - Existing features
     - https://code.visualstudio.com/docs/editor/voice
