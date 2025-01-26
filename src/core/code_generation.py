@@ -98,13 +98,23 @@ class TransformersCodeGeneration(CodeGenerationStrategy):
         
     def generate_code(self, prompt: str) -> str:
         try:
-            inputs = self.tokenizer.encode(f"Write Python code for: {prompt}", 
-                                         return_tensors="pt")
+            # Encode the input and get the attention mask
+            inputs = self.tokenizer.encode_plus(
+                f"Write Python code for: {prompt}",
+                return_tensors="pt",
+                padding=True,
+                truncation=True
+            )
+            input_ids = inputs['input_ids']
+            attention_mask = inputs['attention_mask']
+            
             if torch.cuda.is_available():
-                inputs = inputs.to("cuda")
+                input_ids = input_ids.to("cuda")
+                attention_mask = attention_mask.to("cuda")
                 
             outputs = self.model.generate(
-                inputs,
+                input_ids,
+                attention_mask=attention_mask,  # Pass the attention mask
                 max_length=512,
                 num_return_sequences=1,
                 temperature=0.7,
@@ -118,4 +128,45 @@ class TransformersCodeGeneration(CodeGenerationStrategy):
             
         except Exception as e:
             print(f"Error generating code with transformers: {e}")
+            return ""
+
+
+# Custom endpoint implementation
+class CustomEndpointCodeGeneration(CodeGenerationStrategy):
+    def __init__(self, endpoint: str, model: str, api_key: str = None):
+        self.api_key = api_key
+        self.base_url = endpoint
+        self.model = model
+
+    def generate_code(self, prompt: str) -> str:
+        try:
+            headers = {
+                "Authorization": f"Bearer {self.api_key}",
+                "Content-Type": "application/json"
+            }
+            
+            data = {
+                "model": self.model,
+                "messages": [
+                    {"role": "system", "content": "You are a helpful assistant"},
+                    {"role": "user", "content": f"Write Python code for: {prompt}"}
+                ],
+                "temperature": 0.7,
+                "max_tokens": -1,
+                "stream": False
+            }
+            
+            response = requests.post(
+                self.base_url,
+                headers=headers,
+                json=data
+            )
+            response.raise_for_status()
+            
+            result = response.json()
+            print(result)
+            return result["choices"][0]["message"]["content"].strip()
+            
+        except Exception as e:
+            print(f"Error getting code completion: {e}")
             return ""
